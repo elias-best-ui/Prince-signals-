@@ -7,14 +7,14 @@ TOKEN = "8747380852:AAGVaECHypCmUI8Qg4n237i35P-TBMKrLr4"
 CHAT_ID = "5882902045"
 
 # --- רשימת נכסים מורחבת ---
-# מניות טכנולוגיה
+# מניות (Stocks)
 STOCKS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOGL", "META"]
-# קריפטו
+# קריפטו (Crypto) - פועל 24/7
 CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"]
-# מתכות (זהב וכסף)
-METALS = ["GC=F", "SI=F"] # GC=Gold, SI=Silver
-# אנרגיה (נפט וגז טבעי)
-ENERGY = ["CL=F", "NG=F"] # CL=Crude Oil, NG=Natural Gas
+# מתכות (Metals)
+METALS = ["GC=F", "SI=F"] # GC=זהב, SI=כסף
+# אנרגיה (Energy)
+ENERGY = ["CL=F", "NG=F"] # CL=נפט גולמי, NG=גז טבעי
 
 SYMBOLS = STOCKS + CRYPTO + METALS + ENERGY
 
@@ -34,13 +34,13 @@ def calculate_rsi(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def run_bot():
-    print("🔎 סורק שווקים: מניות, קריפטו, מתכות ואנרגיה...")
+    print(f"🔎 סורק {len(SYMBOLS)} נכסים בשווקים השונים...")
     data = yf.download(SYMBOLS, period="1y", interval="1d", group_by='ticker', progress=False)
     
     for symbol in SYMBOLS:
         try:
             df = data[symbol].copy().dropna()
-            if len(df) < 50: continue # וודא שיש מספיק נתונים
+            if len(df) < 50: continue
             
             # חישוב אינדיקטורים
             df['MA20'] = df['Close'].rolling(window=20).mean()
@@ -50,25 +50,25 @@ def run_bot():
             price = round(df['Close'].iloc[-1], 2)
             rsi = round(df['RSI'].iloc[-1], 2)
             
-            # קביעת אייקון לפי סוג הנכס
+            # התאמת אייקון לפי סוג הנכס
             icon = "📊"
             if symbol in CRYPTO: icon = "🪙"
             elif symbol in METALS: icon = "✨"
             elif symbol in ENERGY: icon = "🛢️"
             elif symbol in STOCKS: icon = "📈"
 
-            # --- אסטרטגיה 1: מכירת יתר / קניית יתר (RSI) ---
+            # בדיקת סיגנל RSI
             if rsi < 32:
-                send_telegram_msg(f"{icon} *הזדמנות קנייה (RSI):* {symbol}\nמחיר: {price}$\nמצב: מכירת יתר קיצונית ({rsi})")
+                send_telegram_msg(f"{icon} *הזדמנות קנייה (RSI):* {symbol}\nמחיר: {price}$\nמצב: מכירת יתר ({rsi})")
             elif rsi > 75:
-                send_telegram_msg(f"{icon} *התראת מכירה (RSI):* {symbol}\nמחיר: {price}$\nמצב: קניית יתר קיצונית ({rsi})")
+                send_telegram_msg(f"{icon} *התראת מכירה (RSI):* {symbol}\nמחיר: {price}$\nמצב: קניית יתר ({rsi})")
 
-            # --- אסטרטגיה 2: פריצת ממוצעים (צלב זהב) ---
+            # בדיקת סיגנל צלב זהב
             if df['MA20'].iloc[-2] < df['MA50'].iloc[-2] and df['MA20'].iloc[-1] > df['MA50'].iloc[-1]:
-                send_telegram_msg(f"🚀 *פריצה טכנית:* {symbol}\nמחיר: {price}$\nאירוע: ממוצע 20 חצה את 50 (מגמה חיובית)")
+                send_telegram_msg(f"🚀 *פריצת מגמה:* {symbol}\nמחיר: {price}$\nאירוע: צלב זהב (MA20 חצה MA50)")
 
         except Exception as e:
-            print(f"שגיאה בסריקת {symbol}: {e}")
+            print(f"שגיאה ב-{symbol}: {e}")
 
 if __name__ == "__main__":
     run_bot()
