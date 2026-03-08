@@ -104,4 +104,5 @@ def run_trading_bot():
     print("✅ הסריקה הושלמה והסיגנלים נשלחו לטלגרם!")
 
 # הפעלת הבוט
+
 run_trading_bot()
