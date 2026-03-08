@@ -4,7 +4,7 @@ import requests
 import time
 
 # --- הגדרות אישיות ---
-TOKEN = "8747380852:AAGVaECHypCmUl8Qg4n237i35P-TBMKrLr4"
+TOKEN = "8747380852:AAGKLENyvq-EllJEyhAHpAOvHsMuyuqstWg"
 CHAT_ID = "5882902045"
 
 def send_questionnaire():
