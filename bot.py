@@ -6,25 +6,35 @@ import requests
 TOKEN = "8747380852:AAGVaECHypCmUI8Qg4n237i35P-TBMKrLr4" 
 CHAT_ID = "5882902045"
 
-# --- רשימת נכסים מורחבת ---
-# מניות (Stocks)
-STOCKS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOGL", "META"]
-# קריפטו (Crypto) - פועל 24/7
-CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD"]
-# מתכות (Metals)
-METALS = ["GC=F", "SI=F"] # GC=זהב, SI=כסף
-# אנרגיה (Energy)
-ENERGY = ["CL=F", "NG=F"] # CL=נפט גולמי, NG=גז טבעי
+# --- רשימת נכסים ---
+STOCKS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOGL", "META", "AMD"]
+CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD"]
+METALS = ["GC=F", "SI=F"]
+ENERGY = ["CL=F", "NG=F"]
 
 SYMBOLS = STOCKS + CRYPTO + METALS + ENERGY
 
-def send_telegram_msg(message):
+def send_telegram_complex(message, symbol):
+    # יצירת כפתורי קישור לגרפים
+    tradingview_url = f"https://www.tradingview.com/symbols/{symbol.replace('-USD', '')}/"
+    
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "📊 צפה בגרף (TradingView)", "url": tradingview_url},
+                {"text": "📈 Yahoo Finance", "url": f"https://finance.yahoo.com/quote/{symbol}"}
+            ]
+        ]
+    }
+    
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
-    try:
-        requests.post(url, json=payload)
-    except:
-        print("שגיאה בשליחה לטלגרם")
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown",
+        "reply_markup": keyboard
+    }
+    requests.post(url, json=payload)
 
 def calculate_rsi(data, window=14):
     delta = data.diff()
@@ -34,7 +44,6 @@ def calculate_rsi(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def run_bot():
-    print(f"🔎 סורק {len(SYMBOLS)} נכסים בשווקים השונים...")
     data = yf.download(SYMBOLS, period="1y", interval="1d", group_by='ticker', progress=False)
     
     for symbol in SYMBOLS:
@@ -42,33 +51,43 @@ def run_bot():
             df = data[symbol].copy().dropna()
             if len(df) < 50: continue
             
-            # חישוב אינדיקטורים
-            df['MA20'] = df['Close'].rolling(window=20).mean()
-            df['MA50'] = df['Close'].rolling(window=50).mean()
-            df['RSI'] = calculate_rsi(df['Close'])
-            
             price = round(df['Close'].iloc[-1], 2)
-            rsi = round(df['RSI'].iloc[-1], 2)
-            
-            # התאמת אייקון לפי סוג הנכס
-            icon = "📊"
-            if symbol in CRYPTO: icon = "🪙"
-            elif symbol in METALS: icon = "✨"
-            elif symbol in ENERGY: icon = "🛢️"
-            elif symbol in STOCKS: icon = "📈"
+            rsi = round(calculate_rsi(df['Close']).iloc[-1], 2)
+            ma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+            ma50 = df['Close'].rolling(window=50).mean().iloc[-1]
 
-            # בדיקת סיגנל RSI
-            if rsi < 32:
-                send_telegram_msg(f"{icon} *הזדמנות קנייה (RSI):* {symbol}\nמחיר: {price}$\nמצב: מכירת יתר ({rsi})")
+            # הגדרת יעד וסטופ לוס בסיסיים (3% רווח, 1.5% הפסד)
+            target = round(price * 1.03, 2)
+            stop_loss = round(price * 0.985, 2)
+
+            msg = ""
+            # זיהוי סיגנל לונג (קנייה)
+            if rsi < 30:
+                msg = (f"🟢 *הזדמנות קנייה (LONG)*\n"
+                       f"━━━━━━━━━━━━━━━\n"
+                       f"💎 נכס: `{symbol}`\n"
+                       f"💰 מחיר נוכחי: `{price}$`\n"
+                       f"📉 RSI: `{rsi}` (מכירת יתר)\n\n"
+                       f"🎯 יעד משוער: `{target}$`\n"
+                       f"🛡️ סטופ לוס: `{stop_loss}$`\n")
+
+            # זיהוי סיגנל שורט (מכירה)
             elif rsi > 75:
-                send_telegram_msg(f"{icon} *התראת מכירה (RSI):* {symbol}\nמחיר: {price}$\nמצב: קניית יתר ({rsi})")
+                target_short = round(price * 0.97, 2)
+                stop_short = round(price * 1.015, 2)
+                msg = (f"🔴 *הזדמנות שורט (SHORT)*\n"
+                       f"━━━━━━━━━━━━━━━\n"
+                       f"💎 נכס: `{symbol}`\n"
+                       f"💰 מחיר נוכחי: `{price}$`\n"
+                       f"📈 RSI: `{rsi}` (קניית יתר)\n\n"
+                       f"🎯 יעד משוער: `{target_short}$`\n"
+                       f"🛡️ סטופ לוס: `{stop_short}$`\n")
 
-            # בדיקת סיגנל צלב זהב
-            if df['MA20'].iloc[-2] < df['MA50'].iloc[-2] and df['MA20'].iloc[-1] > df['MA50'].iloc[-1]:
-                send_telegram_msg(f"🚀 *פריצת מגמה:* {symbol}\nמחיר: {price}$\nאירוע: צלב זהב (MA20 חצה MA50)")
+            if msg:
+                send_telegram_complex(msg, symbol)
 
         except Exception as e:
-            print(f"שגיאה ב-{symbol}: {e}")
+            continue
 
 if __name__ == "__main__":
     run_bot()
