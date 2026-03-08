@@ -31,7 +31,7 @@ def run_bot():
     
     for symbol in SYMBOLS:
         try:
-            df = data[symbol].copy().dropna()
+            df = data[symbol].copy().dropna()send_telegram_msg(f"🤖 בדיקה: הבוט סורק כעת את {symbol}")
             
             # חישוב אינדיקטורים
             df['MA20'] = df['Close'].rolling(window=20).mean()
