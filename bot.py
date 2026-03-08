@@ -4,7 +4,7 @@ import requests
 
 # --- הגדרות אישיות ---
 TOKEN = "8747380852:AAGVaECHypCmUl8Qg4n237i35P-TBMKrLr4" 
-CHAT_ID = "שים_כאן_את_המספר_שקיבלת" # למשל: "5882902045"
+CHAT_ID = "5882902045"
 
 # רשימת המניות לסריקה
 SYMBOLS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "BTC-USD"]
